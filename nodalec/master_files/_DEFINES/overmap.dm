@@ -20,7 +20,7 @@
 // #define MAX_OVERMAP_PLACEMENT_ATTEMPTS 5
 
 // Z level of the overmap
-#define OVERMAP_Z_LEVEL 1 // aka centcom z
+#define OVERMAP_Z_LEVEL 5
 
 // size of the overmap (OVERMAP_SIZE x OVERMAP_SIZE)
 #define OVERMAP_SIZE 25 // keep this odd to provide a centre tile

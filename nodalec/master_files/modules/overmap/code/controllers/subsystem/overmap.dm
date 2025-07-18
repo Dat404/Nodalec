@@ -210,16 +210,15 @@ SUBSYSTEM_DEF(overmap)
 			max_ring = ring
 		LAZYADDASSOC(radius_tiles, ring, turf)
 
-/datum/controller/subsystem/overmap/proc/get_unused_overmap_square(thing_not_to_have = /obj/structure/overmap, tries = MAX_OVERMAP_PLACEMENT_ATTEMPTS, force = FALSE)
-	var/turf/turf_to_return
-	for (var/_ in 1 to tries)
-		turf_to_return = pick(block(locate(OVERMAP_LEFT_SIDE_COORD + 1, OVERMAP_SOUTH_SIDE_COORD + 1, OVERMAP_Z_LEVEL), locate(OVERMAP_RIGHT_SIDE_COORD - 1, OVERMAP_NORTH_SIDE_COORD - 1, OVERMAP_Z_LEVEL))) // todo : see if this is expensive
-		if (locate(thing_not_to_have) in turf_to_return)
+/datum/controller/subsystem/overmap/proc/get_unused_overmap_square(thing_to_not_have = /obj/structure/overmap, tries = MAX_OVERMAP_PLACEMENT_ATTEMPTS, force = FALSE)
+	for(var/i in 1 to tries)
+		. = list("x" = rand(1, size), "y" = rand(1, size))
+		if(locate(thing_to_not_have) in overmap_container[.["x"]][.["y"]])
 			continue
-		return turf_to_return
-	if (!force)
-		turf_to_return = null
-	return turf_to_return
+		return
+
+	if(!force)
+		. = null
 
 /**
  * Returns a random turf in a radius from the star, or a random empty turf if OVERMAP_GENERATOR_RANDOM is the active generator.
