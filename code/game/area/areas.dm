@@ -639,3 +639,6 @@ GLOBAL_LIST_EMPTY(teleportlocs)
  */
 /area/golem
 	name = "Golem Territory"
+
+#include "areas\ship.dm"
+#include "areas\outpost.dm"

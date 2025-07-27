@@ -1,0 +1,56 @@
+{
+	"$schema": "https://raw.githubusercontent.com/shiptest-ss13/Shiptest/master/_maps/ship_config_schema.json",
+	"map_name": "Hammerhead-Heavy Cruiser",
+	"map_short_name": "Hammerhead",
+	"description": "Тяжёлый крейсер InteQ класса `Hammerhead` - бывшее исследовательское судно Нанотрейзен, выкупленное и перестроенное для использования в секторах без поддержки основных сил. Судно предназначено для большой и сплочённой команды из четырёх и более человек.",
+	"map_path": "_maps/_mod_celadon/shuttles/inteq/inteq_hammerhead.dmm",
+	"enabled": true,
+	"limit": 1,
+	"prefix": "BIQSV",
+	"faction": "/datum/faction/inteq",
+	"tags": [
+		"Combat",
+		"Riot"
+	],
+	"namelists": [
+		"INTEQ"
+		],
+	"job_slots": {
+		"Vanguard": {
+			"outfit": "/datum/outfit/job/inteq/captain/celadon",
+			"officer": true,
+			"slots": 1
+		},
+		"Enforcer Class One": {
+			"outfit": "/datum/outfit/job/inteq/captain/enfco/celadon",
+			"officer": true,
+			"slots": 1
+		},
+		"Master At Arms": {
+			"outfit": "/datum/outfit/job/inteq/warden/celadon",
+			"officer": true,
+			"slots": 1
+		},
+		"Artificer Class One": {
+			"outfit": "/datum/outfit/job/inteq/ce/celadon",
+			"officer": true,
+			"slots": 1
+		},
+		"Enforcer": {
+			"outfit": "/datum/outfit/job/inteq/security/celadon",
+			"slots": 4
+		},
+		"Artificer": {
+			"outfit": "/datum/outfit/job/inteq/engineer/celadon",
+			"slots": 2
+		},
+		"Corspman": {
+			"outfit": "/datum/outfit/job/inteq/paramedic/celadon",
+			"slots": 1
+		},
+		"Recruit": {
+			"outfit": "/datum/outfit/job/inteq/assistant",
+			"slots": 4
+		}
+	}
+}

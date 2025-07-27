@@ -377,6 +377,14 @@
 	planetary_atmos = 1
 	},
 /area/hangar)
+"xW" = (
+/obj/effect/landmark/hangar_dock,
+/turf/open/floor/plating{
+	light_color = "#1B1D2E";
+	light_range = 2;
+	planetary_atmos = 1
+	},
+/area/hangar)
 "yG" = (
 /obj/effect/decal/fakelattice,
 /obj/effect/decal/cleanable/dirt{
@@ -1794,7 +1802,7 @@ ah
 ah
 jY
 ah
-ah
+xW
 Rx
 Li
 ax

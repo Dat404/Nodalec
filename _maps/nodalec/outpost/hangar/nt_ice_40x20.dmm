@@ -458,6 +458,14 @@
 /obj/effect/decal/cleanable/dirt,
 /turf/open/floor/iron,
 /area/hangar)
+"HG" = (
+/obj/effect/landmark/hangar_dock,
+/turf/open/floor/plating{
+	light_color = "#1B1D2E";
+	light_range = 2;
+	planetary_atmos = 1
+	},
+/area/hangar)
 "Iv" = (
 /obj/machinery/light/floor,
 /obj/effect/decal/cleanable/dirt,
@@ -1257,7 +1265,7 @@ ae
 ae
 aD
 ae
-ae
+HG
 kL
 Mi
 dF

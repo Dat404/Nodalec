@@ -424,6 +424,13 @@
 /obj/structure/flora/grass/both,
 /turf/open/misc/asteroid/snow/breathable/lit,
 /area/hangar)
+"Mt" = (
+/obj/effect/landmark/hangar_dock,
+/turf/open/floor/plating{
+	light_color = "#1B1D2E";
+	light_range = 2
+	},
+/area/hangar)
 "Mx" = (
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/decal/cleanable/dirt,
@@ -1277,7 +1284,7 @@ aN
 aN
 ax
 aN
-aN
+Mt
 SC
 Tj
 ay

@@ -378,6 +378,18 @@
 	config_entry_value = 30
 	min_val = 1
 
+/datum/config_entry/number/max_overmap_event_clusters
+	config_entry_value = 8
+	min_val = 1
+
+/datum/config_entry/number/max_overmap_events
+	config_entry_value = 70
+	min_val = 1
+
+/datum/config_entry/number/max_overmap_dynamic_events
+	config_entry_value = 5
+	min_val = 1
+
 // /datum/config_entry/number/overmap_encounter_size
 // 	max_val = 255
 // 	config_entry_value = 191

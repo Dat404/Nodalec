@@ -15,43 +15,39 @@ SUBSYSTEM_DEF(overmap)
 	name = "Overmap"
 	wait = 10
 	init_order = INIT_ORDER_OVERMAP
-	flags = SS_NO_FIRE
+	flags = SS_KEEP_TIMING
 	runlevels = RUNLEVEL_SETUP | RUNLEVEL_GAME
 
-	///Defines which generator to use for the overmap
-	var/generator_type = OVERMAP_GENERATOR_SOLAR
+	/// All the existing star systems, it's gonna be atleast 1 including the main system
+	var/list/tracked_star_systems = list()
 
 	///List of all overmap objects.
-	var/list/overmap_objects
-	/// Centre of the overmap
-	var/turf/overmap_centre
-	/// Map of tiles at each radius around the sun
-	var/list/list/radius_tiles = list()
-	/// List of all events
+	var/list/overmap_objects = list()
+	///List of all simulated ships. All ships in this list are fully initialized.
+	var/list/controlled_ships = list()
+	///List of spawned outposts. The default spawn location is the first index.
+	var/list/outposts = list()
+
+	///List of all dynamic overmap datums
+	var/list/dynamic_encounters  = list()
+	///List of all events
 	var/list/events = list()
-		///List of spawned outposts. The default spawn location is the first index.
-	var/list/outposts
 
-	///List of dynamic encounters, just planets rn.
-	var/list/dynamic_encounters
-	COOLDOWN_DECLARE(dynamic_despawn_cooldown)
+	/// The mandatory and default star system
+	var/datum/overmap_star_system/default_system
 
-	///Width/height of the overmap "zlevel"
-	var/size = OVERMAP_SIZE
-	///The virtual level that contains the overmap
-	var/datum/virtual_level/overmap_vlevel
 	///Should events be processed
 	var/events_enabled = TRUE
 
-	///The two-dimensional list that contains every single tile in the overmap as a sublist.
-	var/list/list/overmap_container
+	///Whether or not a ship is currently being spawned. Used to prevent multiple ships from being spawned at once.
+	var/ship_spawning //TODO: Make a proper queue for this
 
 	///List of all simulated ships
 	var/list/simulated_ships = list()
 	/// Timer ID of the timer used for telling which stage of an endround "jump" the ships are in
 	var/jump_timer
 	/// Current state of the jump
-	var/jump_mode = BS_JUMP_IDLE
+	var/jump_mode = 0
 	/// Time taken for bluespace jump to begin after it is requested (in deciseconds)
 	var/jump_request_time = 6000
 	/// Time taken for a bluespace jump to complete after it initiates (in deciseconds)
@@ -60,44 +56,56 @@ SUBSYSTEM_DEF(overmap)
 	var/datum/map_template/shuttle/voidcrew/initial_ship_template
 	var/obj/structure/overmap/ship/initial_ship
 
+	/// Centre of the overmap
+	var/turf/overmap_centre
+	/// Map of tiles at each radius around the sun
+	var/list/list/radius_tiles = list()
+	///Width/height of the overmap "zlevel"
+	var/size = 30
+
+
+
+/datum/controller/subsystem/overmap/proc/get_metrics()
+	. = list()
+	var/list/cust = list()
+	cust["overmap_objects"] = length(overmap_objects)
+	cust["controlled_ships"] = length(controlled_ships)
+	.["custom"] = cust
+
+/datum/controller/subsystem/overmap/proc/create_new_star_system(datum/overmap_star_system/new_starsystem)
+	if(length(tracked_star_systems) >= 1)
+		WARNING("Attempted to create more than 1 star system. Bugs may occur as this isn't very well supported, you have been warned")
+	tracked_star_systems += new_starsystem
+	return new_starsystem
+
+/**
+ * Creates an overmap object for shuttles, triggers initialization procs for ships
+ */
 /datum/controller/subsystem/overmap/Initialize(start_timeofday)
 	overmap_objects = list()
-	// controlled_ships = list()
+	controlled_ships = list()
 	outposts = list()
 	dynamic_encounters = list()
 	events = list()
 
-	generator_type = CONFIG_GET(string/overmap_generator_type)
-	size = CONFIG_GET(number/overmap_size)
-
-	overmap_container = new/list(size, size, 0)
-
-	var/encounter_name = "Overmap"
-	var/datum/map_zone/mapzone = SSmapping.create_map_zone(encounter_name)
-	overmap_vlevel = SSmapping.create_virtual_level(encounter_name, list(), mapzone, size + MAP_EDGE_PAD * 2, size + MAP_EDGE_PAD * 2)
-	overmap_vlevel.reserve_margin(MAP_EDGE_PAD)
-	overmap_vlevel.fill_in(/turf/open/overmap, /area/overmap)
-	overmap_vlevel.selfloop()
-
-	if (!generator_type)
-		generator_type = OVERMAP_GENERATOR_RANDOM
-
-	if (generator_type == OVERMAP_GENERATOR_SOLAR)
-		var/datum/overmap/star/center
-		var/startype = pick(subtypesof(/datum/overmap/star))
-		center = new startype(list("x" = round(size / 2 + 1), "y" = round(size / 2 + 1)))
-		radius_tiles = list()
-		for(var/x in 1 to size)
-			for(var/y in 1 to size)
-				radius_tiles["[round(sqrt((x - center.x) ** 2 + (y - center.y) ** 2)) + 1]"] += list(list("x" = x, "y" = y))
-
+	// Load outpost map on z-level 2
+	load_outpost_map()
+	
+	// Create physical overmap on z-level 3
 	create_map()
 	setup_sun()
-	setup_dangers() // Это спавн ивентов вокруг орбиты
+	setup_dangers()
 	setup_planets()
-	spawn_initial_ship()
-
+	spawn_outpost()
 	return SS_INIT_SUCCESS
+
+/datum/controller/subsystem/overmap/proc/spawn_new_star_system(datum/overmap_star_system/system_to_spawn=/datum/overmap_star_system)
+	if(istype(system_to_spawn))
+		return create_new_star_system(system_to_spawn)
+	return create_new_star_system(new system_to_spawn)
+
+/datum/controller/subsystem/overmap/fire()
+	return
 /*
  * Bluespace jump procs
  */
@@ -144,26 +152,19 @@ SUBSYSTEM_DEF(overmap)
 	jump_timer = addtimer(VARSET_CALLBACK(src, jump_mode, BS_JUMP_COMPLETED), jump_completion_time)
 
 /datum/controller/subsystem/overmap/proc/create_map()
-	// creates the overmap area and sets it up
-	var/area/overmap/overmap_area = new
-	overmap_area.setup("Overmap")
-
-	// locates the area we want the overmap to be
-	var/turf/top_left = locate(OVERMAP_LEFT_SIDE_COORD, OVERMAP_NORTH_SIDE_COORD, OVERMAP_Z_LEVEL)
-	var/turf/bottom_right = locate(OVERMAP_RIGHT_SIDE_COORD, OVERMAP_SOUTH_SIDE_COORD, OVERMAP_Z_LEVEL)
-	var/list/overmap_turfs = block(top_left, bottom_right)
+	// Create overmap on z-level 3, bottom-left corner
+	var/turf/bottom_left = locate(OVERMAP_LEFT_SIDE_COORD, OVERMAP_SOUTH_SIDE_COORD, OVERMAP_Z_LEVEL)
+	var/turf/top_right = locate(OVERMAP_RIGHT_SIDE_COORD, OVERMAP_NORTH_SIDE_COORD, OVERMAP_Z_LEVEL)
+	var/list/overmap_turfs = block(bottom_left, top_right)
+	
 	for (var/turf/overmap_turf as anything in overmap_turfs)
 		if (overmap_turf.x == OVERMAP_LEFT_SIDE_COORD || overmap_turf.x == OVERMAP_RIGHT_SIDE_COORD || overmap_turf.y == OVERMAP_NORTH_SIDE_COORD || overmap_turf.y == OVERMAP_SOUTH_SIDE_COORD)
 			overmap_turf.ChangeTurf(/turf/closed/overmap_edge)
 		else
 			overmap_turf.ChangeTurf(/turf/open/overmap)
-		var/area/old_area = get_area(overmap_turf)
-		old_area.turfs_to_uncontain_by_zlevel += overmap_turf
-		overmap_area.contents += overmap_turf
-		overmap_area.turfs_by_zlevel += overmap_turf
-	overmap_area.reg_in_areas_in_z()
-	// not actually the centre but close enough
-	overmap_centre = get_turf(locate((OVERMAP_LEFT_SIDE_COORD + ((OVERMAP_SIZE - 1) / 2)) - 1, (OVERMAP_SOUTH_SIDE_COORD + ((OVERMAP_SIZE - 1) / 2)) - 1, OVERMAP_Z_LEVEL))
+	
+	// Set center of overmap
+	overmap_centre = locate(OVERMAP_LEFT_SIDE_COORD + round(OVERMAP_SIZE / 2), OVERMAP_SOUTH_SIDE_COORD + round(OVERMAP_SIZE / 2), OVERMAP_Z_LEVEL)
 
 	// MARK: ОЧЕНЬ ВАЖНО!
 	// if (generator_type == OVERMAP_GENERATOR_SOLAR)	// TODO: Доделать
@@ -178,15 +179,11 @@ SUBSYSTEM_DEF(overmap)
 
 // MARK: SUN
 /datum/controller/subsystem/overmap/proc/setup_sun()
-	var/turf/open/overmap/centre_tile = overmap_centre
-	if(!istype(centre_tile))
-		can_fire = FALSE
-		message_admins("Overmap failed to generate the map, this is a critical error.")
-		CRASH("Overmap did not generate correctly!")
-
-	var/obj/structure/overmap/star/big/star_to_spawn = pick(/obj/structure/overmap/star/big, /obj/structure/overmap/star/big/binary)
-	star_to_spawn = new
-	star_to_spawn.forceMove(centre_tile)
+	if(!overmap_centre)
+		return
+	
+	// Create a simple star object
+	new /obj/structure/overmap/star/big(overmap_centre)
 
 	var/list/unsorted_turfs = get_area_turfs(/area/overmap, target_z = OVERMAP_Z_LEVEL)
 	var/max_ring = 0
@@ -213,7 +210,9 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/get_unused_overmap_square(thing_not_to_have = /obj/structure/overmap, tries = MAX_OVERMAP_PLACEMENT_ATTEMPTS, force = FALSE)
 	var/turf/turf_to_return
 	for (var/_ in 1 to tries)
-		turf_to_return = pick(block(locate(OVERMAP_LEFT_SIDE_COORD + 1, OVERMAP_SOUTH_SIDE_COORD + 1, OVERMAP_Z_LEVEL), locate(OVERMAP_RIGHT_SIDE_COORD - 1, OVERMAP_NORTH_SIDE_COORD - 1, OVERMAP_Z_LEVEL))) // todo : see if this is expensive
+		turf_to_return = pick(block(locate(OVERMAP_LEFT_SIDE_COORD + 1, OVERMAP_SOUTH_SIDE_COORD + 1, OVERMAP_Z_LEVEL), locate(OVERMAP_RIGHT_SIDE_COORD - 1, OVERMAP_NORTH_SIDE_COORD - 1, OVERMAP_Z_LEVEL)))
+		if(!turf_to_return)
+			continue
 		if (locate(thing_not_to_have) in turf_to_return)
 			continue
 		return turf_to_return
@@ -248,64 +247,20 @@ SUBSYSTEM_DEF(overmap)
 
 // MARK: EVENTS (DANGERS)
 /datum/controller/subsystem/overmap/proc/setup_dangers()
-	var/list/orbits = list()
-	for (var/i in 2 to LAZYLEN(radius_tiles))
-		orbits += "[i]"
-
-	for (var/_ in 1 to MAX_OVERMAP_EVENT_CLUSTERS)
-		if (MAX_OVERMAP_EVENTS <= LAZYLEN(events))
-			return
-		if (LAZYLEN(orbits) == 0 || !orbits)
-			break // can't fit anymore in
-		var/selected_orbit = text2num(pick(orbits))
-
-		var/turf/turf_for_event = get_unused_overmap_square_in_radius(selected_orbit)
-		if (!turf_for_event || !istype(turf_for_event))
-			orbits -= "[selected_orbit]" // this one is full
-			continue
-		var/event_type = pick_weight(GLOB.overmap_event_pick_list)
-		var/obj/structure/overmap/event/event_to_spawn = new event_type(turf_for_event)
-		for (var/turf/turf_to_spawn as anything in radius_tiles[selected_orbit])
-			if (locate(/obj/structure/overmap) in turf_to_spawn)
-				continue
-			if (!prob(event_to_spawn.spread_chance))
-				continue
-			new event_type(turf_to_spawn)
+	// Create random events across the overmap
+	for(var/i in 1 to 8)
+		var/turf/event_turf = get_unused_overmap_square()
+		if(event_turf)
+			var/event_type = pick_weight(GLOB.overmap_event_pick_list)
+			new event_type(event_turf)
 
 // MARK: PLANETS
 /datum/controller/subsystem/overmap/proc/setup_planets()
-	var/list/planets = list()
-	for(var/datum/overmap/planet/planet_type as anything in subtypesof(/datum/overmap/planet))
-		if(initial(planet_type.spawn_rate) > 0)
-			planets += planet_type
-
-
-	var/list/orbits = list()
-	for (var/i in 2 to LAZYLEN(radius_tiles))
-		orbits += "[i]"
-
-	for (var/_ in 1 to MAX_OVERMAP_PLANETS_TO_SPAWN)
-		if (LAZYLEN(orbits) == 0 || !orbits)
-			break // can't fit anymore in
-		var/selected_orbit = text2num(pick(orbits))
-
-		var/turf/turf_for_planet = get_unused_overmap_square_in_radius(selected_orbit)
-		if (!turf_for_planet || !istype(turf_for_planet))
-			orbits -= "[selected_orbit]" // this one is full
-			continue
-
-		var/planet_type = pick(planets)
-		var/obj/structure/overmap/planet/planet_to_spawn = new
-		planet_to_spawn.planet = planet_type
-		planet_to_spawn.forceMove(turf_for_planet)
-
-		// Transfer all of the data from the planet datum onto the planet object
-		var/datum/overmap/planet/planet_info = new planet_to_spawn.planet
-		planet_to_spawn.name = planet_info.name
-		planet_to_spawn.desc = planet_info.desc
-		planet_to_spawn.icon_state = planet_info.icon_state
-		planet_to_spawn.color = planet_info.color
-		qdel(planet_info)
+	// Create a few simple planets
+	for(var/i in 1 to 3)
+		var/turf/planet_turf = get_unused_overmap_square()
+		if(planet_turf)
+			new /obj/structure/overmap/planet(planet_turf)
 
 // TODO - MULTI-Z VLEVELS
 /datum/controller/subsystem/overmap/proc/calculate_turf_above(turf/T)
@@ -501,35 +456,161 @@ SUBSYSTEM_DEF(overmap)
  * Creates a single outpost somewhere near the center of the system.
  */
 /datum/controller/subsystem/overmap/proc/spawn_outpost()
-	var/list/location = get_unused_overmap_square_in_radius(rand(3, round(size/5)))
-
-	var/datum/overmap/outpost/found_type
-	if(fexists(OUTPOST_OVERRIDE_FILEPATH))
-		var/file_text = trim_right(file2text(OUTPOST_OVERRIDE_FILEPATH)) // trim_right because there's often a trailing newline
-		var/datum/overmap/outpost/potential_type = text2path(file_text)
-		if(!potential_type || !ispath(potential_type, /datum/overmap/outpost))
-			stack_trace("SSovermap found an outpost override file at [OUTPOST_OVERRIDE_FILEPATH], but was unable to find the outpost type [potential_type]!")
-		else
-			found_type = potential_type
-		fdel(OUTPOST_OVERRIDE_FILEPATH) // don't want it to affect 2 rounds in a row.
-
-	if(!found_type)
-		var/list/possible_types = subtypesof(/datum/overmap/outpost)
-		for(var/datum/overmap/outpost/outpost_type as anything in possible_types)
-			if(!initial(outpost_type.main_template))
-				possible_types -= outpost_type
-		found_type = pick(possible_types)
-
-	new found_type(location)
+	var/turf/outpost_turf = get_unused_overmap_square()
+	if(outpost_turf)
+		// Create outpost - different from planet
+		var/obj/structure/overmap/outpost/outpost_obj = new(outpost_turf)
+		outpost_obj.name = "outpost"
 	return
 
 /datum/controller/subsystem/overmap/Recover()
-	// overmap_objects = SSovermap.overmap_objects
-	// controlled_ships = SSovermap.controlled_ships
+	overmap_objects = SSovermap.overmap_objects
+	controlled_ships = SSovermap.controlled_ships
 	events = SSovermap.events
-	// dynamic_encounters = SSovermap.dynamic_encounters
+	dynamic_encounters = SSovermap.dynamic_encounters
 	outposts = SSovermap.outposts
-	radius_tiles = SSovermap.radius_tiles
-	// radius_positions = SSovermap.radius_positions
-	// overmap_vlevel = SSovermap.overmap_vlevel
-	// overmap_container = SSovermap.overmap_container
+	tracked_star_systems = SSovermap.tracked_star_systems
+
+/datum/controller/subsystem/overmap/proc/get_random_star_system()
+	if(length(tracked_star_systems) >= 1) //if theres only one star system, why bother?
+		return SSovermap.tracked_star_systems[1]
+	else
+		return SSovermap.tracked_star_systems[rand(1,length(tracked_star_systems))] //if there are more than one, grab one at random
+
+/**
+ * Gets the parent overmap object (e.g. the planet the atom is on) for a given atom.
+ * * source - The object you want to get the corresponding parent overmap object for.
+ */
+/datum/controller/subsystem/overmap/proc/get_overmap_object_by_location(atom/source, exclude_ship = FALSE)
+	return null // TODO: Implement
+
+/**
+ * Gets the interference power of nearby overmap objects.
+ * Inteded to get called by radios, but i'm sure you could use this for other things.
+ */
+/datum/controller/subsystem/overmap/proc/get_overmap_interference(atom/source)
+	return 0 // TODO: Implement
+
+/datum/controller/subsystem/overmap/proc/load_outpost_map()
+	// Load the outpost map on z-level 2
+	var/datum/map_template/outpost_template = new /datum/map_template("_maps/nodalec/outpost/nanotrasen_ice.dmm")
+	if(outpost_template)
+		// Load at coordinates (1,1) on z-level 2
+		var/turf/load_turf = locate(1, 1, 2)
+		if(load_turf)
+			outpost_template.load(load_turf)
+			log_world("Loaded outpost map on z-level 2")
+
+/datum/controller/subsystem/overmap/proc/spawn_player_ship(ship_config_path, mob/player)
+	if(player && player.client)
+		to_chat(player.client, "spawn_player_ship called with: [ship_config_path]")
+	// Parse ship config
+	var/list/ship_data = json_decode(file2text(ship_config_path))
+	if(player && player.client)
+		to_chat(player.client, "ship_data parsed: [ship_data ? "SUCCESS" : "FAILED"]")
+	if(!ship_data)
+		return FALSE
+	
+	// Create new z-level
+	if(player && player.client)
+		to_chat(player.client, "Creating new z-level...")
+	SSmapping.add_new_zlevel("Ship Hangar", list(ZTRAIT_GRAVITY = STANDARD_GRAVITY))
+	var/target_z = world.maxz
+	if(player && player.client)
+		to_chat(player.client, "Created z-level: [target_z]")
+	
+	// Load hangar first
+	var/hangar_path = "_maps/nodalec/outpost/hangar/nt_ice_20x20.dmm"
+	if(fexists(hangar_path))
+		var/datum/map_template/hangar_template = new /datum/map_template(hangar_path)
+		hangar_template.load(locate(1, 1, target_z))
+	
+	// Find hangar dock landmark
+	var/turf/dock_turf
+	var/landmarks_found = 0
+	for(var/obj/effect/landmark/outpost/hangar_dock/dock_mark in world)
+		landmarks_found++
+		if(player && player.client)
+			to_chat(player.client, "Found landmark at z=[dock_mark.z], target_z=[target_z]")
+		if(dock_mark.z == target_z)
+			dock_turf = get_turf(dock_mark)
+			if(player && player.client)
+				to_chat(player.client, "Using dock landmark at [dock_turf]")
+			qdel(dock_mark)
+			break
+	if(player && player.client)
+		to_chat(player.client, "Total landmarks found: [landmarks_found], dock_turf: [dock_turf]")
+	
+	// Load ship at dock position with centering offset
+	var/ship_path = ship_data["map_path"]
+	if(ship_path && fexists(ship_path))
+		var/datum/map_template/ship_template = new /datum/map_template(ship_path)
+		var/turf/load_turf
+		if(dock_turf)
+			// Center ship in 20x20 hangar (offset by +5,+5 from landmark)
+			load_turf = locate(dock_turf.x + 5, dock_turf.y + 5, target_z)
+		else
+			load_turf = locate(25, 25, target_z)
+		ship_template.load(load_turf)
+		if(player && player.client)
+			to_chat(player.client, "Ship loaded at: [load_turf] (offset from landmark)")
+	
+	// Teleport player to center of hangar
+	if(player)
+		var/spawn_turf = dock_turf || locate(25, 25, target_z)  // Keep player at hangar center
+		player.forceMove(spawn_turf)
+		if(player.client)
+			to_chat(player.client, "Player moved to: [spawn_turf]")
+	
+	if(player && player.client)
+		to_chat(player.client, "Spawned ship [ship_data["name"]] on z-level [target_z]")
+	return TRUE
+
+/datum/controller/subsystem/overmap/proc/create_ship_box(ship_config_path, mob/player)
+	// Parse ship config
+	var/list/ship_data = json_decode(file2text(ship_config_path))
+	log_world("Ship data parsed: [ship_data ? "YES" : "NO"]")
+	if(!ship_data)
+		return FALSE
+	
+	// Create new z-level for ship box
+	SSmapping.add_new_zlevel("Ship Box", list(ZTRAIT_GRAVITY = STANDARD_GRAVITY))
+	var/target_z = world.maxz
+	log_world("Created z-level: [target_z]")
+	
+	// Create edge borders (4 tiles thick)
+	for(var/x in 1 to 60)
+		for(var/y in 1 to 60)
+			var/turf/T = locate(x, y, target_z)
+			if(x <= 4 || x >= 57 || y <= 4 || y >= 57)
+				T.ChangeTurf(/turf/closed/indestructible/edge)
+			else
+				T.ChangeTurf(/turf/open/space)
+	log_world("Box borders created on z-level [target_z]")
+	
+	// Load ship in center (after borders to avoid overwriting)
+	var/ship_path = ship_data["map_path"]
+	log_world("Ship path: [ship_path], exists: [fexists(ship_path)]")
+	if(ship_path && fexists(ship_path))
+		var/datum/map_template/ship_template = new /datum/map_template(ship_path)
+		var/load_result = ship_template.load(locate(25, 25, target_z))
+		log_world("Ship template load result: [load_result]")
+	else
+		log_world("Ship not loaded - path issue")
+	
+	// Create overmap token
+	var/turf/token_turf = get_unused_overmap_square()
+	log_world("Token turf found: [token_turf ? "YES" : "NO"]")
+	if(token_turf)
+		var/obj/structure/overmap/ship/ship_token = new(token_turf)
+		ship_token.name = ship_data["map_name"] || "Unknown Ship"
+		log_world("Ship token created: [ship_token.name]")
+	
+	// Teleport player to ship
+	if(player)
+		var/turf/spawn_turf = locate(25, 25, target_z)
+		log_world("Player spawn turf: [spawn_turf]")
+		player.forceMove(spawn_turf)
+	
+	log_world("Created ship box [ship_data["name"]] on z-level [target_z] for [player]")
+	return TRUE

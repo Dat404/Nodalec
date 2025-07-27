@@ -5,7 +5,6 @@
 /area/template_noop)
 "bi" = (
 /obj/structure/lattice/clockwork,
-/obj/structure/lattice/clockwork,
 /turf/template_noop,
 /area/template_noop)
 "dM" = (
@@ -28,7 +27,7 @@
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "hO" = (
-/obj/structure/chair/bronze{
+/obj/structure/chair/comfy/shuttle/bronze{
 	dir = 4
 	},
 /turf/open/floor/bronze,
@@ -47,7 +46,7 @@
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "pW" = (
-/obj/item/nullrod/spear,
+/obj/item/melee/spear,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "qj" = (
@@ -56,8 +55,8 @@
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "qC" = (
-/obj/structure/chair/bronze,
-/obj/item/nullrod/spear,
+/obj/structure/chair/comfy/shuttle/bronze,
+/obj/item/melee/spear,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "vz" = (
@@ -85,14 +84,14 @@
 /turf/open/chasm/reebe_void,
 /area/ruin/reebe)
 "zu" = (
-/obj/structure/chair/bronze{
+/obj/structure/chair/comfy/shuttle/bronze{
 	dir = 8
 	},
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "Ag" = (
 /obj/structure/table/bronze,
-/obj/item/nullrod/spear,
+/obj/item/melee/spear,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "AT" = (
@@ -130,7 +129,7 @@
 /area/ruin/reebe)
 "FD" = (
 /obj/structure/table/bronze,
-/obj/item/radio/intercom,
+/obj/item/radio/intercom/directional/north,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "FK" = (
@@ -171,7 +170,7 @@
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "JC" = (
-/obj/structure/chair/bronze{
+/obj/structure/chair/comfy/shuttle/bronze{
 	dir = 1
 	},
 /turf/open/floor/bronze,
@@ -221,7 +220,7 @@
 /turf/open/floor/bronze,
 /area/ruin/reebe)
 "Ux" = (
-/obj/item/spear,
+/obj/item/melee/spear,
 /obj/item/grenade/c4,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
@@ -243,10 +242,6 @@
 /obj/effect/mob_spawn/human/corpse/nanotrasensoldier,
 /turf/open/floor/bronze,
 /area/ruin/reebe)
-"Yz" = (
-/obj/structure/lattice/clockwork,
-/turf/template_noop,
-/area/template_noop)
 "Zx" = (
 /obj/structure/mirror/magic/lesser{
 	pixel_x = 32
@@ -464,7 +459,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 vP
 pm
 pm
@@ -474,7 +469,7 @@ pm
 pm
 pm
 FK
-Yz
+bi
 IC
 IC
 IC
@@ -518,15 +513,15 @@ IC
 IC
 IC
 ai
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
 vP
 pm
 pm
@@ -536,15 +531,15 @@ pm
 pm
 pm
 FK
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
 ai
 IC
 IC
@@ -588,7 +583,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 vP
 pm
 pm
@@ -598,7 +593,7 @@ pm
 pm
 pm
 FK
-Yz
+bi
 IC
 IC
 IC
@@ -1928,7 +1923,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -1990,7 +1985,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2052,7 +2047,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2114,7 +2109,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2176,7 +2171,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2238,7 +2233,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2300,7 +2295,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -2362,7 +2357,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3106,7 +3101,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3168,7 +3163,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3230,7 +3225,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3292,7 +3287,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3354,7 +3349,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3416,7 +3411,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3478,7 +3473,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -3540,7 +3535,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 IC
 IC
 IC
@@ -4804,7 +4799,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 vP
 pm
 pm
@@ -4814,7 +4809,7 @@ pm
 pm
 pm
 FK
-Yz
+bi
 IC
 IC
 IC
@@ -4858,15 +4853,15 @@ IC
 IC
 IC
 ai
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
 vP
 pm
 pm
@@ -4876,15 +4871,15 @@ Em
 pm
 pm
 FK
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
-Yz
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
+bi
 FT
 IC
 IC
@@ -4928,7 +4923,7 @@ IC
 IC
 IC
 IC
-Yz
+bi
 vP
 pm
 pm
@@ -4938,7 +4933,7 @@ pm
 pm
 pm
 FK
-Yz
+bi
 IC
 IC
 IC

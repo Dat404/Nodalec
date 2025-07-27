@@ -41,24 +41,25 @@
 	viewer = TRUE
 
 /obj/machinery/computer/helm/ui_interact(mob/user, datum/tgui/ui)
-	. = ..()
-	if(!current_ship && !attempt_ship_connection(last_resort = TRUE))
-		return FALSE
+	attempt_ship_connection(last_resort = TRUE)
 
 	ui = SStgui.try_update_ui(user, src, ui)
-	current_ship.update_screen()
+	if(current_ship)
+		current_ship.update_screen()
 
 	if(!ui)
-		current_ship.cam_screen.display_to(user)
-		user.client.register_map_obj(current_ship.cam_screen)
-		user.client.register_map_obj(current_ship.cam_background)
+		if(current_ship)
+			current_ship.cam_screen.display_to(user)
+			user.client.register_map_obj(current_ship.cam_screen)
+			user.client.register_map_obj(current_ship.cam_background)
 
-		ui = new(user, src, "HelmComputer", name)
+		ui = new(user, src, "HelmConsole", name)
 		ui.open()
 
 /obj/machinery/computer/helm/ui_close(mob/user)
 	. = ..()
-	current_ship.cam_screen.hide_from(user)
+	if(current_ship)
+		current_ship.cam_screen.hide_from(user)
 /*
 /obj/machinery/computer/helm/ui_act(action, list/params)
 	. = ..()
@@ -86,62 +87,87 @@
 /obj/machinery/computer/helm/ui_data(mob/user)
 	var/list/data = list()
 
-	data["thrust"] = current_ship.calculate_thrust()
-	data["integrity"] = current_ship.integrity
-	data["calibrating"] = calibrating
-	data["otherInfo"] = list()
-	for (var/obj/structure/overmap/object as anything in current_ship.close_overmap_objects)
-		var/list/other_data = list(
-			name = object.name,
-			integrity = object.integrity,
-			ref = REF(object)
-		)
-		data["otherInfo"] += list(other_data)
-	var/turf/T = get_turf(current_ship)
-	data["x"] = T.x
-	data["y"] = T.y
-	data["state"] = current_ship.state
-	data["docked"] = isturf(current_ship.loc) ? FALSE : TRUE
-	data["heading"] = dir2text(current_ship.get_heading()) || "None"
-	data["speed"] = current_ship.get_speed()
-	data["eta"] = current_ship.get_eta()
-	data["est_thrust"] = current_ship.est_thrust
-	data["engineInfo"] = list()
-	for(var/obj/machinery/power/shuttle_engine/ship/E in current_ship.shuttle.engine_list)
-		var/list/engine_data
-		if(!E.thruster_active)
-			engine_data = list(
-				name = E.name,
-				fuel = 0,
-				maxFuel = 100,
-				enabled = E.enabled,
-				ref = REF(E)
+	if(current_ship)
+		data["thrust"] = current_ship.calculate_thrust()
+		data["integrity"] = current_ship.integrity
+		data["calibrating"] = calibrating
+		data["otherInfo"] = list()
+		for (var/obj/structure/overmap/object as anything in current_ship.close_overmap_objects)
+			var/list/other_data = list(
+				name = object.name,
+				integrity = object.integrity,
+				ref = REF(object)
 			)
-		else
-			engine_data = list(
-				name = E.name,
-				fuel = E.return_fuel(),
-				maxFuel = E.return_fuel_cap(),
-				enabled = E.enabled,
-				ref = REF(E)
-			)
-		data["engineInfo"] += list(engine_data)
+			data["otherInfo"] += list(other_data)
+		var/turf/T = get_turf(current_ship)
+		data["x"] = T.x
+		data["y"] = T.y
+		data["state"] = current_ship.state
+		data["docked"] = isturf(current_ship.loc) ? FALSE : TRUE
+		data["heading"] = dir2text(current_ship.get_heading()) || "None"
+		data["speed"] = current_ship.get_speed()
+		data["eta"] = current_ship.get_eta()
+		data["est_thrust"] = current_ship.est_thrust
+		data["engineInfo"] = list()
+		for(var/obj/machinery/power/shuttle_engine/ship/E in current_ship.shuttle.engine_list)
+			var/list/engine_data
+			if(!E.thruster_active)
+				engine_data = list(
+					name = E.name,
+					fuel = 0,
+					maxFuel = 100,
+					enabled = E.enabled,
+					ref = REF(E)
+				)
+			else
+				engine_data = list(
+					name = E.name,
+					fuel = E.return_fuel(),
+					maxFuel = E.return_fuel_cap(),
+					enabled = E.enabled,
+					ref = REF(E)
+				)
+			data["engineInfo"] += list(engine_data)
+	else
+		// Default values when no ship is connected
+		data["thrust"] = 0
+		data["integrity"] = 100
+		data["calibrating"] = FALSE
+		data["otherInfo"] = list()
+		data["x"] = 0
+		data["y"] = 0
+		data["state"] = "DISCONNECTED"
+		data["docked"] = FALSE
+		data["heading"] = "None"
+		data["speed"] = 0
+		data["eta"] = 0
+		data["est_thrust"] = 0
+		data["engineInfo"] = list()
 
 	return data
 
 /obj/machinery/computer/helm/ui_static_data(mob/user)
 	var/list/data = list()
 
-	data["mapRef"] = current_ship.map_name
 	data["isViewer"] = viewer
-	data["mapRef"] = current_ship.map_name
-	data["shipInfo"] = list(
-		name = current_ship.display_name,
-		class = current_ship.source_template?.name,
-		mass = current_ship.mass,
-		//sensor_range = current_ship.sensor_range
-	)
 	data["canFly"] = TRUE
+	
+	if(current_ship)
+		data["mapRef"] = current_ship.map_name
+		data["shipInfo"] = list(
+			name = current_ship.display_name,
+			class = current_ship.source_template?.name,
+			mass = current_ship.mass,
+			//sensor_range = current_ship.sensor_range
+		)
+	else
+		data["mapRef"] = "helm_console_map"
+		data["shipInfo"] = list(
+			name = "No Ship Connected",
+			class = "Unknown",
+			mass = 0,
+			sensor_range = 0
+		)
 
 	return data
 
@@ -206,18 +232,32 @@
  * This proc manually rechecks that the helm computer is connected to a proper ship
  */
 /obj/machinery/computer/helm/proc/attempt_ship_connection(last_resort = FALSE)
-	if(current_ship && current_ship.shuttle.z == z)
+	if(current_ship && (!current_ship.shuttle || current_ship.shuttle.z == z))
 		return TRUE
 
 	var/obj/docking_port/mobile/voidcrew/port = SSshuttle.get_containing_shuttle(src)
-	if(!istype(port))
-		port = null
+	if(istype(port))
+		current_ship = port.current_ship
+		if(current_ship)
+			return TRUE
 
-	if(!port && last_resort) // todo: check for helm being constructed, damn those players
-		stack_trace("Failed to connect a helm to its ship, this is almost certainly a bug!")
+	if(last_resort)
+		// Try to connect to nearest overmap ship
+		var/obj/structure/overmap/ship/nearest_ship
+		var/min_dist = INFINITY
+		
+		for(var/obj/structure/overmap/ship/ship in SSovermap.simulated_ships)
+			var/dist = get_dist(src, ship)
+			if(dist < min_dist)
+				min_dist = dist
+				nearest_ship = ship
+		
+		if(nearest_ship)
+			current_ship = nearest_ship
+			say("Connected to [nearest_ship.name]")
+			return TRUE
 
-	current_ship = port?.current_ship
-	return !!current_ship
+	return FALSE
 
 /**
  * This proc manually rechecks that the helm computer is connected to a proper ship
@@ -234,6 +274,18 @@
 		return
 	if(viewer)
 		return
+	. = TRUE
+	
+	if(!current_ship)
+		switch(action)
+			if("reload_ship")
+				reload_ship()
+				update_static_data(usr, ui)
+				return
+			else
+				say("No ship connected to helm console.")
+				return
+	
 	switch(action) // Universal topics
 		if("rename_ship")
 			var/new_name = params["newName"]
@@ -252,16 +304,6 @@
 				log_shuttle("[usr] changed shuttle [old_name] to [new_name]")
 			update_static_data(usr, ui)
 			return
-			/*
-		if("toggle_kos")
-			current_ship.set_ship_faction("KOS")
-			update_static_data(usr, ui)
-			return
-		if("return")
-			current_ship.set_ship_faction("return")
-			update_static_data(usr, ui)
-			return
-			*/
 		if("reload_ship")
 			reload_ship()
 			update_static_data(usr, ui)
@@ -269,46 +311,47 @@
 		if("reload_engines")
 			current_ship.refresh_engines()
 			return
-
-	switch(current_ship.state) // Ship state-limited topics
-		if(OVERMAP_SHIP_FLYING)
-			switch(action)
-				if("act_overmap")
-					var/obj/structure/overmap/to_act = locate(params["ship_to_act"])
-					say(current_ship.overmap_object_act(usr, to_act))
-					return
-				if("toggle_engine")
-					var/obj/machinery/power/shuttle_engine/ship/E = locate(params["engine"])
-					E.enabled = !E.enabled
-					current_ship.refresh_engines()
-					return
-				if("change_heading")
-					//current_ship.current_autopilot_target = null
-					current_ship.burn_engines(text2num(params["dir"]))
-					return
-				if("stop")
-					//current_ship.current_autopilot_target = null
-					current_ship.burn_engines()
-					return
-				if("bluespace_jump")
-					if(calibrating)
-						cancel_jump()
-						return
-					else
-						if(tgui_alert(usr, "Do you want to bluespace jump? Your ship and everything on it will be removed from the round.", "Jump Confirmation", list("Yes", "No")) != "Yes")
-							return
-						calibrate_jump()
-						return
-				if("dock_empty")
-					say(current_ship.dock_in_empty_space(usr))
-					return
-		if(OVERMAP_SHIP_IDLE)
-			if(action == "undock")
+		if("act_overmap")
+			var/obj/structure/overmap/to_act = locate(params["ship_to_act"])
+			if(to_act && current_ship.state == OVERMAP_SHIP_FLYING)
+				say(current_ship.overmap_object_act(usr, to_act))
+			else
+				say("Cannot interact - ship must be flying and target must be valid.")
+			return
+		if("change_heading")
+			if(current_ship.state == OVERMAP_SHIP_FLYING)
+				current_ship.burn_engines(text2num(params["dir"]))
+			else
+				say("Cannot change heading - ship is not in flight mode.")
+			return
+		if("stop")
+			if(current_ship.state == OVERMAP_SHIP_FLYING)
+				current_ship.burn_engines()
+			else
+				say("Cannot stop engines - ship is not in flight mode.")
+			return
+		if("undock")
+			if(current_ship.state == OVERMAP_SHIP_IDLE)
 				current_ship.calculate_avg_fuel()
 				if(current_ship.avg_fuel_amnt < 25 && tgui_alert(usr, "Ship only has ~[round(current_ship.avg_fuel_amnt)]% fuel remaining! Are you sure you want to undock?", name, list("Yes", "No")) != "Yes")
 					return
 				say(current_ship.undock())
-				return
+			else
+				say("Cannot undock - ship is not docked.")
+			return
+		if("dock_empty")
+			if(current_ship.state == OVERMAP_SHIP_FLYING && current_ship.is_still())
+				say(current_ship.dock_in_empty_space(usr))
+			else
+				say("Cannot dock - ship must be flying and stationary.")
+			return
+		if("connect_ship")
+			if(attempt_ship_connection(last_resort = TRUE))
+				say("Ship connection established.")
+			else
+				say("No ships found to connect to.")
+			update_static_data(usr, ui)
+			return
 
 
 

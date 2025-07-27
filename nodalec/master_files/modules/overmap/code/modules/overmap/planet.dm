@@ -179,3 +179,15 @@
 		qdel(reserve_dock_secondary, TRUE)
 		reserve_dock_secondary = null
 
+/obj/structure/overmap/outpost
+	name = "outpost"
+	desc = "A space station serving as a hub for travelers."
+	icon_state = "globe"
+	color = "#00FF00"
+
+/obj/structure/overmap/ship
+	name = "ship"
+	desc = "A vessel traveling through space."
+	icon_state = "ship"
+	color = "#FFFFFF"
+
